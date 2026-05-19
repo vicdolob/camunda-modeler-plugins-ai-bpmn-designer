@@ -75,6 +75,7 @@
             ]
           },
           "name": { "type": "string" },
+          "documentation": { "type": "string", "description": "Element documentation shown in Camunda Modeler properties panel" },
           "laneRef": { "type": ["string", "null"] },
           "properties": {
             "type": "object",
@@ -95,7 +96,8 @@
           "sourceRef": { "type": "string" },
           "targetRef": { "type": "string" },
           "condition": { "type": ["string", "null"] },
-          "name": { "type": ["string", "null"] }
+          "name": { "type": ["string", "null"] },
+          "documentation": { "type": ["string", "null"], "description": "Flow documentation shown in Camunda Modeler" }
         }
       }
     },

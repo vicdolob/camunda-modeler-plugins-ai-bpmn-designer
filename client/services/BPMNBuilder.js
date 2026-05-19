@@ -93,63 +93,65 @@ export function buildBPMN(spec, platform) {
     var id = escapeXml(node.id);
     var name = escapeXml(node.name);
     var attrs = ' id="' + id + '"' + (name ? ' name="' + name + '"' : '');
+    var doc = node.documentation ? escapeXml(node.documentation) : null;
 
     switch (node.type) {
       case 'startEvent':
-        xmlParts.push('    <bpmn:startEvent' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:startEvent' + attrs, doc));
         break;
 
       case 'endEvent':
-        xmlParts.push('    <bpmn:endEvent' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:endEvent' + attrs, doc));
         break;
 
       case 'userTask':
-        xmlParts.push(buildTask('bpmn:userTask', node, attrs, platform));
+        xmlParts.push(buildTask('bpmn:userTask', node, attrs, platform, doc));
         break;
 
       case 'serviceTask':
-        xmlParts.push(buildTask('bpmn:serviceTask', node, attrs, platform));
+        xmlParts.push(buildTask('bpmn:serviceTask', node, attrs, platform, doc));
         break;
 
       case 'scriptTask':
-        xmlParts.push(buildTask('bpmn:scriptTask', node, attrs, platform));
+        xmlParts.push(buildTask('bpmn:scriptTask', node, attrs, platform, doc));
         break;
 
       case 'businessRuleTask':
-        xmlParts.push(buildTask('bpmn:businessRuleTask', node, attrs, platform));
+        xmlParts.push(buildTask('bpmn:businessRuleTask', node, attrs, platform, doc));
         break;
 
       case 'manualTask':
-        xmlParts.push('    <bpmn:manualTask' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:manualTask' + attrs, doc));
         break;
 
       case 'exclusiveGateway':
-        xmlParts.push('    <bpmn:exclusiveGateway' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:exclusiveGateway' + attrs, doc));
         break;
 
       case 'parallelGateway':
-        xmlParts.push('    <bpmn:parallelGateway' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:parallelGateway' + attrs, doc));
         break;
 
       case 'intermediateCatchEvent':
-        xmlParts.push('    <bpmn:intermediateCatchEvent' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:intermediateCatchEvent' + attrs, doc));
         break;
 
       case 'intermediateThrowEvent':
-        xmlParts.push('    <bpmn:intermediateThrowEvent' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:intermediateThrowEvent' + attrs, doc));
         break;
 
       case 'callActivity':
-        xmlParts.push('    <bpmn:callActivity' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:callActivity' + attrs, doc));
         break;
 
       case 'subProcess':
         xmlParts.push('    <bpmn:subProcess' + attrs + '>');
+        if (doc) xmlParts.push('      <bpmn:documentation>' + doc + '</bpmn:documentation>');
         xmlParts.push('    </bpmn:subProcess>');
         break;
 
       default:
-        xmlParts.push('    <bpmn:task' + attrs + ' />');
+        xmlParts.push(wrapWithDoc('bpmn:task' + attrs, doc));
     }
   });
 
@@ -157,13 +159,19 @@ export function buildBPMN(spec, platform) {
   (spec.flows || []).forEach(function(flow) {
     var id = escapeXml(flow.id);
     var attrs = ' id="' + id + '" sourceRef="' + escapeXml(flow.sourceRef) + '" targetRef="' + escapeXml(flow.targetRef) + '"';
+    var nameAttr = flow.name ? ' name="' + escapeXml(flow.name) + '"' : '';
+    var flowDoc = flow.documentation ? escapeXml(flow.documentation) : null;
 
-    if (flow.condition) {
-      xmlParts.push('    <bpmn:sequenceFlow' + attrs + '>');
-      xmlParts.push('      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">' + escapeXml(flow.condition) + '</bpmn:conditionExpression>');
+    if (flow.condition || flowDoc) {
+      xmlParts.push('    <bpmn:sequenceFlow' + attrs + nameAttr + '>');
+      if (flowDoc) {
+        xmlParts.push('      <bpmn:documentation>' + flowDoc + '</bpmn:documentation>');
+      }
+      if (flow.condition) {
+        xmlParts.push('      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">' + escapeXml(flow.condition) + '</bpmn:conditionExpression>');
+      }
       xmlParts.push('    </bpmn:sequenceFlow>');
     } else {
-      var nameAttr = flow.name ? ' name="' + escapeXml(flow.name) + '"' : '';
       xmlParts.push('    <bpmn:sequenceFlow' + attrs + nameAttr + ' />');
     }
   });
@@ -239,9 +247,21 @@ export function buildBPMN(spec, platform) {
 }
 
 /**
- * Build a task element with extension properties.
+ * Wrap a self-closing BPMN element with documentation if present.
+ * Without doc:  <bpmn:startEvent id="..." />
+ * With doc:     <bpmn:startEvent id="...><bpmn:documentation>...</bpmn:documentation></bpmn:startEvent>
  */
-function buildTask(tagName, node, attrs, platform) {
+function wrapWithDoc(tagWithAttrs, doc) {
+  if (!doc) {
+    return '    <' + tagWithAttrs + ' />';
+  }
+  return '    <' + tagWithAttrs + '>\n      <bpmn:documentation>' + doc + '</bpmn:documentation>\n    </' + tagWithAttrs.split(' ')[0] + '>';
+}
+
+/**
+ * Build a task element with extension properties and optional documentation.
+ */
+function buildTask(tagName, node, attrs, platform, doc) {
   var props = node.properties || {};
   var hasExtensions = false;
   var extensionParts = [];
@@ -272,11 +292,18 @@ function buildTask(tagName, node, attrs, platform) {
     extraAttrs += ' camunda:delegateExpression="' + escapeXml(props['camunda:delegateExpression']) + '"';
   }
 
-  if (hasExtensions && extensionParts.length > 0) {
+  var needsBody = hasExtensions || doc;
+
+  if (needsBody) {
     var lines = ['    <' + tagName + attrs + extraAttrs + '>'];
-    lines.push('      <bpmn:extensionElements>');
-    extensionParts.forEach(function(p) { lines.push(p); });
-    lines.push('      </bpmn:extensionElements>');
+    if (doc) {
+      lines.push('      <bpmn:documentation>' + doc + '</bpmn:documentation>');
+    }
+    if (hasExtensions && extensionParts.length > 0) {
+      lines.push('      <bpmn:extensionElements>');
+      extensionParts.forEach(function(p) { lines.push(p); });
+      lines.push('      </bpmn:extensionElements>');
+    }
     lines.push('    </' + tagName + '>');
     return lines.join('\n');
   }

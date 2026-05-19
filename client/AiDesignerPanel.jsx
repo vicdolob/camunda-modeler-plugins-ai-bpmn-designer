@@ -3,6 +3,7 @@ import Fill from 'camunda-modeler-plugin-helpers/components/Fill';
 import { SYSTEM_PROMPT, CREATE_TEMPLATE, UPDATE_TEMPLATE, CORRECTION_TEMPLATE, ENHANCE_INSTRUCTION, ENHANCE_USER_TEMPLATE } from './prompts/index';
 import { validate, extractJSON } from './services/ProcessSpecValidator';
 import { buildBPMN } from './services/BPMNBuilder';
+import { parseBpmnXml, getCurrentBpmnXml } from './services/BpmnReverseParser';
 import LLMAdapterRegistry from './services/LLMAdapterRegistry';
 import './style.css';
 
@@ -113,10 +114,23 @@ function AIDesignerPanel(props) {
 
     // Build initial user prompt
     var originalPrompt;
+    var resolvedSpec = currentSpec; // Start with cached spec
+
     if (mode === 'create') {
       originalPrompt = CREATE_TEMPLATE.replace('{userText}', promptText);
     } else {
-      var currentSpecJSON = currentSpec ? JSON.stringify(currentSpec, null, 2) : '{}';
+      // Update mode: if no cached ProcessSpec, reverse-parse current diagram
+      if (!resolvedSpec) {
+        try {
+          setStep(0, 'active');
+          var currentXml = await getCurrentBpmnXml();
+          resolvedSpec = parseBpmnXml(currentXml);
+          setCurrentSpec(resolvedSpec); // Cache for future updates
+        } catch (parseErr) {
+          throw new Error('Cannot read current diagram for update: ' + parseErr.message + '\nTry switching to Create mode instead.');
+        }
+      }
+      var currentSpecJSON = resolvedSpec ? JSON.stringify(resolvedSpec, null, 2) : '{}';
       originalPrompt = UPDATE_TEMPLATE
         .replace('{currentSpecJSON}', currentSpecJSON)
         .replace('{userText}', promptText);

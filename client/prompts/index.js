@@ -13,6 +13,8 @@ STRICT RULES:
 8. All flow sourceRef and targetRef must reference existing node IDs.
 9. The flow graph must be weakly connected (no orphaned components).
 10. Each process must have exactly one startEvent and at least one endEvent.
+11. Every node and flow MUST have a "documentation" field with a brief description of what it does or why it exists. This will appear as "Element documentation" in the Camunda Modeler properties panel. Write 1-2 clear sentences.
+12. Do NOT create nodes that have no connecting flows. Every node must be reachable from the start event.
 
 PROCESS SPEC SCHEMA:
 {
@@ -24,6 +26,7 @@ PROCESS SPEC SCHEMA:
     "id": "string",
     "type": "startEvent|endEvent|userTask|serviceTask|exclusiveGateway|parallelGateway|scriptTask|businessRuleTask|manualTask|callActivity|subProcess|intermediateCatchEvent|intermediateThrowEvent",
     "name": "string",
+    "documentation": "Brief description of what this element does",
     "laneRef": "string|null",
     "properties": { "camunda:assignee": "string", "zeebe:taskDefinitionType": "string" }
   }],
@@ -32,7 +35,8 @@ PROCESS SPEC SCHEMA:
     "sourceRef": "string",
     "targetRef": "string",
     "condition": "string|null",
-    "name": "string|null"
+    "name": "string|null",
+    "documentation": "Brief description of this flow"
   }],
   "dataObjects": [{ "id": "string", "name": "string" }],
   "artifacts": [{ "id": "string", "type": "textAnnotation|group", "text": "string" }]
