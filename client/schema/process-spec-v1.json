@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProcessSpec v1.0",
+  "description": "Intermediate structured representation for BPMN process generation",
+  "type": "object",
+  "required": ["specVersion", "process", "nodes", "flows"],
+  "additionalProperties": false,
+  "properties": {
+    "specVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "process": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "isExecutable": { "type": "boolean", "default": true }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "participantRef": { "type": "string" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "startEvent",
+              "endEvent",
+              "userTask",
+              "serviceTask",
+              "exclusiveGateway",
+              "parallelGateway",
+              "intermediateThrowEvent",
+              "intermediateCatchEvent",
+              "scriptTask",
+              "businessRuleTask",
+              "manualTask",
+              "receiveTask",
+              "sendTask",
+              "callActivity",
+              "subProcess"
+            ]
+          },
+          "name": { "type": "string" },
+          "laneRef": { "type": ["string", "null"] },
+          "properties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "flows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "sourceRef", "targetRef"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+          "sourceRef": { "type": "string" },
+          "targetRef": { "type": "string" },
+          "condition": { "type": ["string", "null"] },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "dataObjects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["textAnnotation", "group"] },
+          "text": { "type": "string" }
+        }
+      }
+    }
+  }
+}
