@@ -29,6 +29,9 @@ Natural Language Description
 └─────────────────┘
 ```
 
+<img width="1632" height="929" alt="изображение" src="https://github.com/user-attachments/assets/05fca8f5-318b-45f9-aca7-cd5d68458bbd" />
+
+
 **Key principle:** The LLM never generates XML directly — only a structured `ProcessSpec` JSON. A deterministic builder converts it into valid BPMN 2.0 XML with diagram interchange (DI) layout. This eliminates hallucinated namespaces, broken ID references, and malformed `sequenceFlow` targets that are common when LLMs generate XML directly.
 
 ---
