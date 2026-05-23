@@ -32,6 +32,8 @@ var ELEMENT_TYPE_MAP = {
   'intermediateThrowEvent': 'intermediateThrowEvent',
   'callActivity': 'callActivity',
   'subProcess': 'subProcess',
+  'boundaryEvent': 'boundaryEvent',
+  'dataStoreReference': 'dataStoreReference',
   'task': 'task'
 };
 
@@ -92,7 +94,9 @@ export function parseBpmnXml(xmlString) {
     lanes: [],
     nodes: [],
     flows: [],
+    messageFlows: [],
     dataObjects: [],
+    dataStoreReferences: [],
     artifacts: []
   };
 
@@ -110,12 +114,28 @@ export function parseBpmnXml(xmlString) {
   // Parse participants from collaboration
   var collaborationElements = doc.getElementsByTagNameNS(BPMN_NS, 'collaboration');
   if (collaborationElements.length > 0) {
-    var participants = collaborationElements[0].getElementsByTagNameNS(BPMN_NS, 'participant');
+    var collab = collaborationElements[0];
+    var participants = collab.getElementsByTagNameNS(BPMN_NS, 'participant');
     for (var pi = 0; pi < participants.length; pi++) {
-      spec.participants.push({
+      var pObj = {
         id: participants[pi].getAttribute('id'),
         name: participants[pi].getAttribute('name') || participants[pi].getAttribute('id')
-      });
+      };
+      var pProcessRef = participants[pi].getAttribute('processRef');
+      if (pProcessRef) pObj.processRef = pProcessRef;
+      spec.participants.push(pObj);
+    }
+
+    // Parse message flows from collaboration
+    var msgFlows = collab.getElementsByTagNameNS(BPMN_NS, 'messageFlow');
+    for (var mfi = 0; mfi < msgFlows.length; mfi++) {
+      var mfObj = {
+        id: msgFlows[mfi].getAttribute('id'),
+        sourceRef: msgFlows[mfi].getAttribute('sourceRef'),
+        targetRef: msgFlows[mfi].getAttribute('targetRef'),
+        name: msgFlows[mfi].getAttribute('name') || null
+      };
+      spec.messageFlows.push(mfObj);
     }
   }
 
@@ -167,6 +187,54 @@ export function parseBpmnXml(xmlString) {
       name: nodeName,
       laneRef: laneRef
     };
+
+    // Handle sub-process triggered by event
+    if (localName === 'subProcess' && child.getAttribute('triggeredByEvent') === 'true') {
+      nodeObj.type = 'eventSubProcess';
+    }
+
+    // Handle boundary events
+    if (localName === 'boundaryEvent') {
+      var attachedTo = child.getAttribute('attachedToRef');
+      if (attachedTo) nodeObj.attachedToRef = attachedTo;
+      var cancelAct = child.getAttribute('cancelActivity');
+      if (cancelAct !== null) nodeObj.cancelActivity = cancelAct !== 'false';
+
+      // Detect event type from child event definition
+      var eventDefs = ['timerEventDefinition', 'errorEventDefinition', 'signalEventDefinition',
+        'messageEventDefinition', 'escalationEventDefinition', 'conditionalEventDefinition'];
+      for (var edi = 0; edi < eventDefs.length; edi++) {
+        var evDefs = child.getElementsByTagNameNS(BPMN_NS, eventDefs[edi]);
+        if (evDefs.length > 0) {
+          nodeObj.eventType = eventDefs[edi].replace('EventDefinition', '');
+          break;
+        }
+      }
+    }
+
+    // Detect event type for intermediate events
+    if (localName === 'intermediateCatchEvent' || localName === 'intermediateThrowEvent') {
+      var iEventDefs = ['timerEventDefinition', 'errorEventDefinition', 'signalEventDefinition',
+        'messageEventDefinition', 'escalationEventDefinition', 'conditionalEventDefinition'];
+      for (var iei = 0; iei < iEventDefs.length; iei++) {
+        var iEvDefs = child.getElementsByTagNameNS(BPMN_NS, iEventDefs[iei]);
+        if (iEvDefs.length > 0) {
+          nodeObj.eventType = iEventDefs[iei].replace('EventDefinition', '');
+          break;
+        }
+      }
+    }
+
+    // Handle data store references
+    if (localName === 'dataStoreReference') {
+      // dataStoreReferences go into a separate array
+      if (!spec.dataStoreReferences) spec.dataStoreReferences = [];
+      spec.dataStoreReferences.push({
+        id: nodeId,
+        name: nodeName
+      });
+      continue;
+    }
 
     if (documentation) nodeObj.documentation = documentation;
     if (properties) nodeObj.properties = properties;
@@ -238,6 +306,18 @@ export function parseBpmnXml(xmlString) {
       id: ta.getAttribute('id'),
       type: 'textAnnotation',
       text: text
+    });
+  }
+
+  // Parse associations
+  var associations = process.getElementsByTagNameNS(BPMN_NS, 'association');
+  for (var ai = 0; ai < associations.length; ai++) {
+    var assoc = associations[ai];
+    spec.artifacts.push({
+      id: assoc.getAttribute('id'),
+      type: 'association',
+      sourceRef: assoc.getAttribute('sourceRef') || null,
+      targetRef: assoc.getAttribute('targetRef') || null
     });
   }
 

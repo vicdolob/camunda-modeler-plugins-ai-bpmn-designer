@@ -48,6 +48,14 @@ function validateIds(spec) {
     allIds.push(id);
   }
 
+  (spec.participants || []).forEach(function(p, i) {
+    checkId(p.id, 'participants[' + i + '].id');
+  });
+
+  (spec.lanes || []).forEach(function(l, i) {
+    checkId(l.id, 'lanes[' + i + '].id');
+  });
+
   (spec.nodes || []).forEach(function(n, i) {
     checkId(n.id, 'nodes[' + i + '].id');
   });
@@ -56,8 +64,16 @@ function validateIds(spec) {
     checkId(f.id, 'flows[' + i + '].id');
   });
 
+  (spec.messageFlows || []).forEach(function(mf, i) {
+    checkId(mf.id, 'messageFlows[' + i + '].id');
+  });
+
   (spec.dataObjects || []).forEach(function(d, i) {
     checkId(d.id, 'dataObjects[' + i + '].id');
+  });
+
+  (spec.dataStoreReferences || []).forEach(function(ds, i) {
+    checkId(ds.id, 'dataStoreReferences[' + i + '].id');
   });
 
   (spec.artifacts || []).forEach(function(a, i) {
@@ -135,6 +151,53 @@ function validateGraphIntegrity(spec) {
       errors.push({
         message: 'endEvent ' + e.id + ' must have no outgoing flows',
         path: 'nodes[' + nodes.indexOf(e) + ']'
+      });
+    }
+  });
+
+  // Check boundary events
+  var boundaryNodes = nodes.filter(function(n) { return n.type === 'boundaryEvent'; });
+  boundaryNodes.forEach(function(bn) {
+    if (!bn.attachedToRef) {
+      errors.push({
+        message: 'boundaryEvent ' + bn.id + ' must have attachedToRef',
+        path: 'nodes[' + nodes.indexOf(bn) + '].attachedToRef'
+      });
+    } else if (!nodeMap[bn.attachedToRef]) {
+      errors.push({
+        message: 'boundaryEvent ' + bn.id + ' references non-existent attachedToRef: ' + bn.attachedToRef,
+        path: 'nodes[' + nodes.indexOf(bn) + '].attachedToRef'
+      });
+    }
+    // Boundary events should not have incoming flows, but must have at least one outgoing
+    if (incoming[bn.id].length > 0) {
+      errors.push({
+        message: 'boundaryEvent ' + bn.id + ' must have no incoming flows',
+        path: 'nodes[' + nodes.indexOf(bn) + ']'
+      });
+    }
+    if (outgoing[bn.id].length === 0) {
+      warnings.push({
+        message: 'boundaryEvent ' + bn.id + ' has no outgoing flows — error path is missing',
+        path: 'nodes[' + nodes.indexOf(bn) + ']'
+      });
+    }
+  });
+
+  // Check message flow references
+  (spec.messageFlows || []).forEach(function(mf, i) {
+    var srcExists = validNodeIds[mf.sourceRef] || (spec.participants || []).some(function(p) { return p.id === mf.sourceRef; });
+    var tgtExists = validNodeIds[mf.targetRef] || (spec.participants || []).some(function(p) { return p.id === mf.targetRef; });
+    if (!srcExists) {
+      errors.push({
+        message: 'messageFlow ' + mf.id + ' references non-existent source: ' + mf.sourceRef,
+        path: 'messageFlows[' + i + '].sourceRef'
+      });
+    }
+    if (!tgtExists) {
+      errors.push({
+        message: 'messageFlow ' + mf.id + ' references non-existent target: ' + mf.targetRef,
+        path: 'messageFlows[' + i + '].targetRef'
       });
     }
   });

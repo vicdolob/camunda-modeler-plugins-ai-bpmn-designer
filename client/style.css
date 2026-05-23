@@ -337,6 +337,35 @@
   font-size: 12px;
 }
 
+/* Options row (checkboxes) */
+.ai-options-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 4px 0 6px 0;
+}
+
+.ai-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #444 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-checkbox-label input[type="checkbox"] {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: #1890ff;
+  cursor: pointer;
+}
+
 /* Diff indicator */
 .ai-diff-added {
   background: #f6ffed;

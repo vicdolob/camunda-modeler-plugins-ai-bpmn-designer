@@ -28,7 +28,8 @@
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
-          "name": { "type": "string" }
+          "name": { "type": "string" },
+          "processRef": { "type": ["string", "null"], "description": "Reference to a process ID. If null/absent, this is an empty pool (black-box participant)." }
         }
       }
     },
@@ -41,7 +42,7 @@
         "properties": {
           "id": { "type": "string" },
           "name": { "type": "string" },
-          "participantRef": { "type": "string" }
+          "participantRef": { "type": ["string", "null"] }
         }
       }
     },
@@ -71,12 +72,17 @@
               "receiveTask",
               "sendTask",
               "callActivity",
-              "subProcess"
+              "subProcess",
+              "eventSubProcess",
+              "boundaryEvent"
             ]
           },
           "name": { "type": "string" },
           "documentation": { "type": "string", "description": "Element documentation shown in Camunda Modeler properties panel" },
           "laneRef": { "type": ["string", "null"] },
+          "attachedToRef": { "type": ["string", "null"], "description": "For boundary events: ID of the task/subProcess this event is attached to" },
+          "cancelActivity": { "type": "boolean", "default": true, "description": "For boundary events: true = interrupting, false = non-interrupting" },
+          "eventType": { "type": ["string", "null"], "description": "For boundary/intermediate events: timer, error, signal, message, escalation, conditional", "enum": ["timer", "error", "signal", "message", "escalation", "conditional", null] },
           "properties": {
             "type": "object",
             "additionalProperties": { "type": "string" }
@@ -101,8 +107,36 @@
         }
       }
     },
+    "messageFlows": {
+      "type": "array",
+      "description": "Message flows connecting participants across pool boundaries",
+      "items": {
+        "type": "object",
+        "required": ["id", "sourceRef", "targetRef"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$" },
+          "sourceRef": { "type": "string", "description": "ID of the source participant, node, or event" },
+          "targetRef": { "type": "string", "description": "ID of the target participant, node, or event" },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
     "dataObjects": {
       "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "dataStoreReferences": {
+      "type": "array",
+      "description": "Data store references that appear as visual elements on the diagram",
       "items": {
         "type": "object",
         "required": ["id", "name"],
@@ -117,12 +151,14 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "type", "text"],
+        "required": ["id", "type"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
-          "type": { "type": "string", "enum": ["textAnnotation", "group"] },
-          "text": { "type": "string" }
+          "type": { "type": "string", "enum": ["textAnnotation", "group", "association"] },
+          "text": { "type": ["string", "null"] },
+          "sourceRef": { "type": ["string", "null"], "description": "For associations: source element ID" },
+          "targetRef": { "type": ["string", "null"], "description": "For associations: target element ID" }
         }
       }
     }

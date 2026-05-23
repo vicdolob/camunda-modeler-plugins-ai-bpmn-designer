@@ -80,6 +80,14 @@ function AIDesignerPanel(props) {
     isEnhancing = _useStateEnhancing[0],
     setIsEnhancing = _useStateEnhancing[1];
 
+  var _useStateColorByActor = useState(true),
+    colorByActor = _useStateColorByActor[0],
+    setColorByActor = _useStateColorByActor[1];
+
+  var _useStateUseLanes = useState(true),
+    useLanes = _useStateUseLanes[0],
+    setUseLanes = _useStateUseLanes[1];
+
   var registryRef = useRef(new LLMAdapterRegistry());
   var isGenerating = pipelineStatus === 'running';
 
@@ -116,8 +124,18 @@ function AIDesignerPanel(props) {
     var originalPrompt;
     var resolvedSpec = currentSpec; // Start with cached spec
 
+    // Build lane/message flow instructions based on checkboxes
+    var lanesInstruction = useLanes
+      ? 'IMPORTANT: This process MUST use lanes. Identify all actors/roles and create a lane for each. Every node must be assigned to a lane via laneRef. Also create a participant referencing the process.'
+      : 'Do NOT use lanes. Set laneRef to null for all nodes and leave lanes/participants arrays empty.';
+
+    var messageFlowsInstruction = 'Use messageFlows when the process involves communication between different pools or external participants. Create empty pool participants (processRef=null) for external entities that interact with the process.';
+
     if (mode === 'create') {
-      originalPrompt = CREATE_TEMPLATE.replace('{userText}', promptText);
+      originalPrompt = CREATE_TEMPLATE
+        .replace('{lanesInstruction}', lanesInstruction)
+        .replace('{messageFlowsInstruction}', messageFlowsInstruction)
+        .replace('{userText}', promptText);
     } else {
       // Update mode: if no cached ProcessSpec, reverse-parse current diagram
       if (!resolvedSpec) {
@@ -193,7 +211,7 @@ function AIDesignerPanel(props) {
 
         // Step 3: Build XML
         setStep(3, 'active');
-        var xml = buildBPMN(spec, platform);
+        var xml = buildBPMN(spec, platform, { colorByActor: colorByActor });
 
         // Step 4: Import
         setStep(4, 'active');
@@ -551,6 +569,26 @@ function AIDesignerPanel(props) {
             [1, 2, 3, 4, 5].map(function(n) {
               return React.createElement('option', { key: n, value: n }, n);
             })
+          )
+        ),
+
+        // Options checkboxes
+        React.createElement('div', { className: 'ai-options-row' },
+          React.createElement('label', { className: 'ai-checkbox-label', title: 'Color tasks by their lane/actor assignment' },
+            React.createElement('input', {
+              type: 'checkbox',
+              checked: colorByActor,
+              onChange: function(e) { setColorByActor(e.target.checked); }
+            }),
+            ' Color by actor'
+          ),
+          React.createElement('label', { className: 'ai-checkbox-label', title: 'Force the diagram to use swim lanes for each actor' },
+            React.createElement('input', {
+              type: 'checkbox',
+              checked: useLanes,
+              onChange: function(e) { setUseLanes(e.target.checked); }
+            }),
+            ' Use lanes'
           )
         ),
 

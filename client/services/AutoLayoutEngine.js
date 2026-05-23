@@ -30,6 +30,8 @@ function getNodeDimensions(type) {
     case 'intermediateThrowEvent':
     case 'intermediateCatchEvent':
       return { width: 36, height: 36 };
+    case 'boundaryEvent':
+      return { width: 36, height: 36 };
     default:
       return { width: 100, height: 80 };
   }
@@ -277,12 +279,16 @@ export function computeLayout(spec) {
   var flows = spec.flows || [];
   var lanes = spec.lanes || [];
 
-  var layers = assignLayers(nodes, flows);
-  var ySlots = assignYPositions(nodes, flows, layers);
+  // Separate boundary events from regular nodes for layout
+  var regularNodes = nodes.filter(function(n) { return n.type !== 'boundaryEvent'; });
+  var boundaryNodes = nodes.filter(function(n) { return n.type === 'boundaryEvent'; });
+
+  var layers = assignLayers(regularNodes, flows);
+  var ySlots = assignYPositions(regularNodes, flows, layers);
 
   var positions = {};
 
-  nodes.forEach(function(n) {
+  regularNodes.forEach(function(n) {
     var layer = layers[n.id] || 0;
     var dims = getNodeDimensions(n.type);
     var x = START_X + layer * X_STEP;
@@ -297,9 +303,76 @@ export function computeLayout(spec) {
     };
   });
 
+  // Position boundary events relative to their attached task
+  boundaryNodes.forEach(function(bn) {
+    var parentPos = positions[bn.attachedToRef];
+    if (parentPos) {
+      // Place boundary event at bottom-center of the parent task
+      var dims = getNodeDimensions('boundaryEvent');
+      positions[bn.id] = {
+        x: parentPos.x + (parentPos.width / 2) - (dims.width / 2),
+        y: parentPos.y + parentPos.height - 2,
+        width: dims.width,
+        height: dims.height,
+        type: 'boundaryEvent'
+      };
+    } else {
+      // Fallback if parent not found
+      var dims2 = getNodeDimensions('boundaryEvent');
+      positions[bn.id] = {
+        x: START_X,
+        y: START_Y + 300,
+        width: dims2.width,
+        height: dims2.height,
+        type: 'boundaryEvent'
+      };
+    }
+  });
+
+  // Position data store references
+  (spec.dataStoreReferences || []).forEach(function(ds, i) {
+    positions[ds.id] = {
+      x: START_X + 80 + i * 180,
+      y: START_Y - 80,
+      width: 50,
+      height: 50,
+      type: 'dataStoreReference'
+    };
+  });
+
+  // Position text annotation artifacts
+  var artIdx = 0;
+  (spec.artifacts || []).forEach(function(art) {
+    if (art.type === 'textAnnotation') {
+      // Find a node to attach to (use sourceRef if association exists)
+      var assocArt = (spec.artifacts || []).find(function(a) {
+        return a.type === 'association' && a.targetRef === art.id;
+      });
+      var anchorPos = assocArt && positions[assocArt.sourceRef]
+        ? positions[assocArt.sourceRef]
+        : null;
+
+      var artX = anchorPos
+        ? anchorPos.x + anchorPos.width + 60
+        : START_X + artIdx * 220;
+      var artY = anchorPos
+        ? anchorPos.y - 20
+        : START_Y - 60 + artIdx * 50;
+
+      positions[art.id] = {
+        x: artX,
+        y: artY,
+        width: 100,
+        height: 40,
+        type: 'textAnnotation'
+      };
+      artIdx++;
+    }
+  });
+
   // Post-processing
-  centerGateways(nodes, flows, positions);
-  resolveCollisions(nodes, positions);
+  centerGateways(regularNodes, flows, positions);
+  resolveCollisions(regularNodes, positions);
 
   // Adjust for lanes
   adjustForLanes(lanes, positions, nodes);
