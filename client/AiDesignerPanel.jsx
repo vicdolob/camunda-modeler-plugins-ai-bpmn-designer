@@ -88,6 +88,11 @@ function AIDesignerPanel(props) {
     useLanes = _useStateUseLanes[0],
     setUseLanes = _useStateUseLanes[1];
 
+  var _useStateDiagramLang = useState('en'),
+    diagramLang = _useStateDiagramLang[0],
+    setDiagramLang = _useStateDiagramLang[1];
+
+
   var registryRef = useRef(new LLMAdapterRegistry());
   var isGenerating = pipelineStatus === 'running';
 
@@ -118,22 +123,34 @@ function AIDesignerPanel(props) {
     setCurrentAttempt(0);
 
     var adapter = registry.getActiveAdapter();
-    var systemPrompt = SYSTEM_PROMPT;
+
+    // Build language instruction
+    var languageInstruction = diagramLang === 'ru'
+      ? 'LANGUAGE: All node names, flow names, documentation, and process name MUST be in Russian. Write descriptive labels in Russian.'
+      : 'LANGUAGE: All node names, flow names, documentation, and process name MUST be in English.';
+
+    // Build lane/pool instructions based on checkboxes
+    var lanesInstruction = useLanes
+      ? 'LANES REQUIRED: This process MUST use swim lanes. Identify all actors/roles and create a lane for each. Every node must be assigned to a lane via laneRef. Also create a participant referencing the process.'
+      : 'NO LANES AND NO POOLS: Do NOT use lanes. Do NOT use participants. Set laneRef to null for all nodes. Leave the "lanes" array empty and the "participants" array empty. The process should be a simple flat flow without any pool/lane structure.';
+
+    var messageFlowsInstruction = useLanes
+      ? 'Use messageFlows when the process involves communication with external pools. Create empty pool participants (processRef=null) for external entities.'
+      : 'Do NOT use messageFlows or empty pool participants. Keep the process self-contained without cross-pool communication.';
+
+    // Apply placeholders to SYSTEM_PROMPT
+    var systemPrompt = SYSTEM_PROMPT
+      .replace('{languageInstruction}', languageInstruction)
+      .replace('{lanesInstruction}', lanesInstruction);
 
     // Build initial user prompt
     var originalPrompt;
-    var resolvedSpec = currentSpec; // Start with cached spec
-
-    // Build lane/message flow instructions based on checkboxes
-    var lanesInstruction = useLanes
-      ? 'IMPORTANT: This process MUST use lanes. Identify all actors/roles and create a lane for each. Every node must be assigned to a lane via laneRef. Also create a participant referencing the process.'
-      : 'Do NOT use lanes. Set laneRef to null for all nodes and leave lanes/participants arrays empty.';
-
-    var messageFlowsInstruction = 'Use messageFlows when the process involves communication between different pools or external participants. Create empty pool participants (processRef=null) for external entities that interact with the process.';
+    var resolvedSpec = currentSpec;
 
     if (mode === 'create') {
       originalPrompt = CREATE_TEMPLATE
         .replace('{lanesInstruction}', lanesInstruction)
+        .replace('{languageInstruction}', languageInstruction)
         .replace('{messageFlowsInstruction}', messageFlowsInstruction)
         .replace('{userText}', promptText);
     } else {
@@ -150,6 +167,7 @@ function AIDesignerPanel(props) {
       }
       var currentSpecJSON = resolvedSpec ? JSON.stringify(resolvedSpec, null, 2) : '{}';
       originalPrompt = UPDATE_TEMPLATE
+        .replace('{languageInstruction}', languageInstruction)
         .replace('{currentSpecJSON}', currentSpecJSON)
         .replace('{userText}', promptText);
     }
@@ -171,6 +189,7 @@ function AIDesignerPanel(props) {
           userPrompt = originalPrompt;
         } else {
           userPrompt = CORRECTION_TEMPLATE
+            .replace('{languageInstruction}', languageInstruction)
             .replace('{originalPrompt}', originalPrompt)
             .replace('{previousOutput}', lastRawResponse.substring(0, 3000))
             .replace('{errors}', accumulatedErrors.join('\n'));
@@ -260,7 +279,7 @@ function AIDesignerPanel(props) {
         attemptHistory.push({ attempt: attempt, stage: 'unknown', error: err.message });
       }
     }
-  }, [promptText, mode, currentSpec, platform, registry, maxAttempts]);
+  }, [promptText, mode, currentSpec, platform, registry, maxAttempts, diagramLang, useLanes]);
 
   // --- Test connection ---
   var handleTestConnection = useCallback(async function() {
@@ -304,7 +323,11 @@ function AIDesignerPanel(props) {
     try {
       var adapter = registry.getActiveAdapter();
       var enhanceSystemPrompt = ENHANCE_INSTRUCTION;
-      var enhanceUserPrompt = ENHANCE_USER_TEMPLATE.replace('{userText}', promptText);
+      var enhanceUserPrompt = ENHANCE_USER_TEMPLATE
+        .replace('{languageInstruction}', diagramLang === 'ru'
+          ? 'All output must be in Russian.'
+          : 'All output must be in English.')
+        .replace('{userText}', promptText);
 
       var rawResponse = await adapter.generateProcessSpec(enhanceUserPrompt, enhanceSystemPrompt);
 
@@ -329,6 +352,7 @@ function AIDesignerPanel(props) {
       setIsEnhancing(false);
     }
   }, [promptText, registry]);
+
 
   // --- Render Pipeline Status ---
   var renderPipeline = function() {
@@ -551,7 +575,7 @@ function AIDesignerPanel(props) {
           disabled: isGenerating || isEnhancing
         }),
 
-        // Platform + Max Attempts
+        // Platform + Language + Max Attempts
         React.createElement('div', { className: 'ai-platform-toggle' },
           React.createElement('label', null, 'Platform:'),
           React.createElement('select', {
@@ -560,6 +584,15 @@ function AIDesignerPanel(props) {
           },
             React.createElement('option', { value: 'camunda7' }, 'Camunda 7'),
             React.createElement('option', { value: 'camunda8' }, 'Camunda 8')
+          ),
+          React.createElement('label', { style: { marginLeft: '12px' } }, 'Language:'),
+          React.createElement('select', {
+            value: diagramLang,
+            onChange: function(e) { setDiagramLang(e.target.value); },
+            title: 'Language for diagram labels and documentation'
+          },
+            React.createElement('option', { value: 'en' }, 'English'),
+            React.createElement('option', { value: 'ru' }, 'Русский')
           ),
           React.createElement('label', { style: { marginLeft: '12px' } }, 'Max attempts:'),
           React.createElement('select', {
@@ -624,6 +657,7 @@ function AIDesignerPanel(props) {
           React.createElement('h4', null, 'Error'),
           React.createElement('pre', { style: { whiteSpace: 'pre-wrap', fontSize: '11px', maxHeight: '200px', overflow: 'auto' } }, error)
         ),
+
 
         // Spec preview
         currentSpec && React.createElement('div', { className: 'ai-spec-preview' },
