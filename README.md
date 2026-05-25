@@ -29,8 +29,10 @@ Natural Language Description
 └─────────────────┘
 ```
 
-<img width="1632" height="929" alt="изображение" src="https://github.com/user-attachments/assets/05fca8f5-318b-45f9-aca7-cd5d68458bbd" />
 
+<img width="1287" height="1009" alt="изображение" src="https://github.com/user-attachments/assets/e322a22f-1f78-4198-a026-426648198bb1" />
+
+<img width="1566" height="364" alt="изображение" src="https://github.com/user-attachments/assets/158ac4ef-452b-415d-acfd-5db4e879d5f2" />
 
 <img width="1913" height="650" alt="изображение" src="https://github.com/user-attachments/assets/e7818eee-c25d-4d83-a3f1-210a748e8ddf" />
 
