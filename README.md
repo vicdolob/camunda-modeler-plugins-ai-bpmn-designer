@@ -30,7 +30,7 @@ Natural Language Description
 ```
 
 
-<img width="1287" height="1009" alt="изображение" src="https://github.com/user-attachments/assets/e322a22f-1f78-4198-a026-426648198bb1" />
+<img width="1459" height="1031" alt="изображение" src="https://github.com/user-attachments/assets/58a41d3c-b992-4630-989e-e913ee7a8223" />
 
 <img width="1566" height="364" alt="изображение" src="https://github.com/user-attachments/assets/158ac4ef-452b-415d-acfd-5db4e879d5f2" />
 
